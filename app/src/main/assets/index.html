@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Owner Info</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #eef2f6;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #1a1a1a;
+  }
+  h1 {
+    color: #0a3d91;
+    font-size: 2.4em;
+    margin: 10px 0 30px 0;
+    text-align: center;
+  }
+
+  /* ---------- Onboarding form ---------- */
+  #onboardingScreen { display: none; }
+  .field {
+    margin-bottom: 22px;
+  }
+  .field label {
+    display: block;
+    font-weight: bold;
+    font-size: 1.15em;
+    color: #0a3d91;
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    font-size: 1.3em;
+    padding: 12px 10px;
+    border: 2px solid #0a3d91;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #1a1a1a;
+    text-transform: uppercase;
+  }
+  .field input::placeholder {
+    color: #9aa5b1;
+    text-transform: none;
+  }
+  .field small {
+    display: block;
+    margin-top: 4px;
+    color: #5a6472;
+    font-size: 0.85em;
+  }
+  #onboardingError {
+    display: none;
+    color: #b00020;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  #submitOnboarding {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #ffffff;
+    background: #0a3d91;
+    border: none;
+    border-radius: 8px;
+    margin-top: 10px;
+  }
+  #submitOnboarding:active { background: #082f70; }
+
+  /* ---------- Display screen ---------- */
+  #displayScreen { display: none; padding-bottom: 90px; }
+  p {
+    font-size: 1.6em;
+    margin: 16px 0;
+  }
+  .label {
+    font-weight: bold;
+    color: #0a3d91;
+  }
+  #syncLine {
+    text-align: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    margin: 34px 0;
+    color: #0a3d91;
+  }
+  #syncCount {
+    font-size: 1.3em;
+  }
+  .footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 18px 0;
+    background: #eef2f6;
+    text-align: center;
+    font-size: 1.6em;
+    border-top: 2px solid #0a3d91;
+  }
+  #editLink {
+    display: block;
+    text-align: center;
+    margin-top: 30px;
+    color: #5a6472;
+    font-size: 1em;
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ===================== Onboarding screen ===================== -->
+  <div id="onboardingScreen">
+    <h1>Owner Info Setup</h1>
+    <div id="onboardingError">Please fill in every field. PIN ID must be exactly 8 digits.</div>
+
+    <form id="onboardingForm">
+      <div class="field">
+        <label for="agency">AGENCY</label>
+        <input type="text" id="agency" placeholder="..." autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="firstName">FIRST NAME</label>
+        <input type="text" id="firstName" placeholder="..." autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="lastName">LAST NAME</label>
+        <input type="text" id="lastName" placeholder="..." autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="pinId">8 DIGIT PIN ID</label>
+        <input type="text" id="pinId" placeholder="..." inputmode="numeric" maxlength="8" autocomplete="off">
+        <small>Numbers only, 8 digits.</small>
+      </div>
+
+      <div class="field">
+        <label for="serialId">SERIAL ID</label>
+        <input type="text" id="serialId" placeholder="..." autocomplete="off">
+      </div>
+
+      <button type="submit" id="submitOnboarding">Save &amp; Continue</button>
+    </form>
+  </div>
+
+  <!-- ===================== Display screen ===================== -->
+  <div id="displayScreen">
+    <h1>Owner Information</h1>
+    <p><span class="label">Agency:</span> <span id="outAgency"></span></p>
+    <p><span class="label">Number:</span> <span id="outPinId"></span></p>
+    <p><span class="label">Name:</span> <span id="outName"></span></p>
+
+    <div id="syncLine">Must sync in <span id="syncCount"></span> day<span id="syncPlural">s</span></div>
+
+    <a href="#" id="editLink">Edit owner info</a>
+
+    <div class="footer">
+      <span class="label">Serial #:</span> <span id="outSerialId"></span>
+    </div>
+  </div>
+
+<script>
+  var STORAGE_KEY = 'ownerInfoData';
+
+  function loadData() {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }
+
+  function saveData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function showOnboarding(prefill) {
+    document.getElementById('displayScreen').style.display = 'none';
+    document.getElementById('onboardingScreen').style.display = 'block';
+    document.getElementById('onboardingError').style.display = 'none';
+    if (prefill) {
+      document.getElementById('agency').value = prefill.agency || '';
+      document.getElementById('firstName').value = prefill.firstName || '';
+      document.getElementById('lastName').value = prefill.lastName || '';
+      document.getElementById('pinId').value = prefill.pinId || '';
+      document.getElementById('serialId').value = prefill.serialId || '';
+    }
+  }
+
+  function showDisplay(data) {
+    document.getElementById('onboardingScreen').style.display = 'none';
+    document.getElementById('displayScreen').style.display = 'block';
+    document.getElementById('outAgency').textContent = data.agency;
+    document.getElementById('outPinId').textContent = data.pinId;
+    document.getElementById('outName').textContent = data.lastName + ', ' + data.firstName;
+    document.getElementById('outSerialId').textContent = data.serialId;
+    refreshSyncCounter();
+  }
+
+  // Day 14 on the onboarding day, counting down to 1, then restarting at 14 -
+  // driven by real elapsed calendar days since onboarding, so it always matches "today".
+  function daysElapsedSince(onboardingMs) {
+    var oneDay = 24 * 60 * 60 * 1000;
+    var start = new Date(onboardingMs);
+    var now = new Date();
+    var startUTC = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+    var nowUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.floor((nowUTC - startUTC) / oneDay);
+  }
+
+  function computeSyncDay(onboardingMs) {
+    var elapsed = daysElapsedSince(onboardingMs);
+    var mod = ((elapsed % 14) + 14) % 14;
+    return mod === 0 ? 14 : 14 - mod;
+  }
+
+  // Exposed globally so MainActivity (WebView host) can call it via evaluateJavascript
+  // whenever the app is resumed, keeping the countdown live/real-time.
+  window.refreshSyncCounter = function () {
+    var data = loadData();
+    if (!data || !data.onboardingDate) return;
+    var syncCountEl = document.getElementById('syncCount');
+    var syncPluralEl = document.getElementById('syncPlural');
+    if (!syncCountEl) return;
+    var day = computeSyncDay(data.onboardingDate);
+    syncCountEl.textContent = day;
+    syncPluralEl.textContent = (day === 1) ? '' : 's';
+  };
+
+  document.getElementById('onboardingForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    var agency = document.getElementById('agency').value.trim().toUpperCase();
+    var firstName = document.getElementById('firstName').value.trim().toUpperCase();
+    var lastName = document.getElementById('lastName').value.trim().toUpperCase();
+    var pinId = document.getElementById('pinId').value.trim();
+    var serialId = document.getElementById('serialId').value.trim().toUpperCase();
+
+    var pinValid = /^[0-9]{8}$/.test(pinId);
+
+    if (!agency || !firstName || !lastName || !serialId || !pinValid) {
+      document.getElementById('onboardingError').style.display = 'block';
+      return;
+    }
+
+    var existing = loadData();
+    var data = {
+      agency: agency,
+      firstName: firstName,
+      lastName: lastName,
+      pinId: pinId,
+      serialId: serialId,
+      // Preserve the original onboarding date on edits so the sync countdown
+      // isn't disrupted by a correction; only set it the first time.
+      onboardingDate: (existing && existing.onboardingDate) ? existing.onboardingDate : Date.now()
+    };
+
+    saveData(data);
+    showDisplay(data);
+  });
+
+  // Auto-strip non-digits as the manager types the PIN ID
+  document.getElementById('pinId').addEventListener('input', function () {
+    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 8);
+  });
+
+  document.getElementById('editLink').addEventListener('click', function (e) {
+    e.preventDefault();
+    showOnboarding(loadData());
+  });
+
+  // Keep the countdown fresh while the app sits open (e.g. across midnight)
+  setInterval(function () {
+    if (document.getElementById('displayScreen').style.display === 'block') {
+      window.refreshSyncCounter();
+    }
+  }, 60000);
+
+  // ---------- Initial load ----------
+  (function init() {
+    var data = loadData();
+    if (data && data.agency && data.pinId && data.firstName && data.lastName && data.serialId) {
+      showDisplay(data);
+    } else {
+      showOnboarding(null);
+    }
+  })();
+</script>
+
+</body>
+</html>
