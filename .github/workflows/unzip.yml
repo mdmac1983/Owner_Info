@@ -1,0 +1,79 @@
+name: Unzip Upload
+
+on:
+  push:
+    paths:
+      - '**.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract any zip files at repo root
+        run: |
+          set -e
+          shopt -s nullglob dotglob
+          zips=(*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "No zip file found at repo root - nothing to do."
+            exit 0
+          fi
+
+          rm -rf /tmp/extracted
+          mkdir -p /tmp/extracted
+
+          for z in "${zips[@]}"; do
+            echo "Extracting: $z"
+            unzip -oq "$z" -d /tmp/extracted
+            rm -f "$z"
+          done
+
+          # If the zip had one wrapping folder (e.g. OwnerInfo/...), flatten it
+          # so the project files land at the repo root.
+          entries=(/tmp/extracted/*/)
+          if [ ${#entries[@]} -eq 1 ]; then
+            src="${entries[0]}"
+          else
+            src="/tmp/extracted/"
+          fi
+
+          # Wipe everything except git internals and .github (workflows are
+          # handled separately below) so stray/misplaced files from earlier
+          # manual edits can't linger - then lay the fresh project on top.
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name '.git' \
+            ! -name '.github' \
+            -exec rm -rf {} +
+
+          cp -a "${src%/}"/. ./
+
+      - name: Leave .github/workflows untouched
+        run: |
+          # GitHub blocks the Actions bot token from creating/updating anything
+          # under .github/workflows, no matter what permissions are granted.
+          # Revert/drop any changes the zip made there and warn in the log.
+          if [ -d .github/workflows ]; then
+            changed=$(git status --porcelain -- .github/workflows)
+            if [ -n "$changed" ]; then
+              echo "NOTE: the zip included changes under .github/workflows/ that were skipped."
+              echo "Upload those workflow file(s) manually (Add file -> Upload files) - GitHub"
+              echo "does not allow the Actions bot to write to that folder."
+            fi
+            git checkout -- .github/workflows 2>/dev/null || true
+            git clean -fd .github/workflows 2>/dev/null || true
+          fi
+
+      - name: Commit extracted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && echo "Nothing to commit." || git commit -m "Auto-extract uploaded zip"
+          git push
